@@ -1,48 +1,60 @@
-import { ColorLike, WebGLFBO, WebGLSupportedFormat, WebGLExtensionSupport, WebGLShaderCompiler } from '../types';
+import {
+  ColorLike,
+  WebGLFBO,
+  WebGLSupportedFormat,
+  WebGLExtensionSupport,
+  WebGLShaderCompiler
+} from '../types'
 
-export function getWebGLContext(canvas?: HTMLCanvasElement): WebGLRenderingContextWithExtensions {
+export function getWebGLContext(
+  canvas?: HTMLCanvasElement
+): WebGLRenderingContextWithExtensions {
   const params: WebGLContextAttributes = {
     alpha: true,
     depth: false,
     stencil: false,
     antialias: false,
-    preserveDrawingBuffer: false,
-  };
+    preserveDrawingBuffer: false
+  }
 
-  let gl = canvas?.getContext('webgl2', params) as WebGL2RenderingContext;
-  const isWebGL2 = !!gl;
+  let gl = canvas?.getContext('webgl2', params) as WebGL2RenderingContext
+  const isWebGL2 = !!gl
   if (!isWebGL2) {
     gl = (canvas?.getContext('webgl', params) ||
-      canvas?.getContext('experimental-webgl', params)) as WebGL2RenderingContext;
+      canvas?.getContext(
+        'experimental-webgl',
+        params
+      )) as WebGL2RenderingContext
   }
 
-  let halfFloat: OES_texture_half_float | null = { HALF_FLOAT_OES: 0 };
-  let supportLinearFiltering: OES_texture_float | null;
+  let halfFloat: OES_texture_half_float | null = { HALF_FLOAT_OES: 0 }
+  let supportLinearFiltering: OES_texture_float | null
   if (isWebGL2) {
-    gl?.getExtension('EXT_color_buffer_float');
-    supportLinearFiltering = gl?.getExtension('OES_texture_float_linear');
+    gl?.getExtension('EXT_color_buffer_float')
+    supportLinearFiltering = gl?.getExtension('OES_texture_float_linear')
   } else {
-    halfFloat = gl?.getExtension('OES_texture_half_float');
-    supportLinearFiltering = gl?.getExtension('OES_texture_half_float_linear');
+    halfFloat = gl?.getExtension('OES_texture_half_float')
+    supportLinearFiltering = gl?.getExtension('OES_texture_half_float_linear')
   }
 
-  gl?.clearColor(0.0, 0.0, 0.0, 1.0);
+  gl?.clearColor(0.0, 0.0, 0.0, 1.0)
 
-  let halfFloatTexType: number = 0;
-  if (isWebGL2 || halfFloat) halfFloatTexType = isWebGL2 ? gl.HALF_FLOAT : halfFloat?.HALF_FLOAT_OES ?? 0;
+  let halfFloatTexType: number = 0
+  if (isWebGL2 || halfFloat)
+    halfFloatTexType = isWebGL2 ? gl.HALF_FLOAT : halfFloat?.HALF_FLOAT_OES ?? 0
 
-  let formatRGBA: WebGLSupportedFormat | null;
-  let formatRG: WebGLSupportedFormat | null;
-  let formatR: WebGLSupportedFormat | null;
+  let formatRGBA: WebGLSupportedFormat | null
+  let formatRG: WebGLSupportedFormat | null
+  let formatR: WebGLSupportedFormat | null
 
   if (isWebGL2) {
-    formatRGBA = getSupportedFormat(gl, gl.RGBA16F, gl.RGBA, halfFloatTexType);
-    formatRG = getSupportedFormat(gl, gl.RG16F, gl.RG, halfFloatTexType);
-    formatR = getSupportedFormat(gl, gl.R16F, gl.RED, halfFloatTexType);
+    formatRGBA = getSupportedFormat(gl, gl.RGBA16F, gl.RGBA, halfFloatTexType)
+    formatRG = getSupportedFormat(gl, gl.RG16F, gl.RG, halfFloatTexType)
+    formatR = getSupportedFormat(gl, gl.R16F, gl.RED, halfFloatTexType)
   } else {
-    formatRGBA = getSupportedFormat(gl, gl.RGBA, gl.RGBA, halfFloatTexType);
-    formatRG = getSupportedFormat(gl, gl.RGBA, gl.RGBA, halfFloatTexType);
-    formatR = getSupportedFormat(gl, gl.RGBA, gl.RGBA, halfFloatTexType);
+    formatRGBA = getSupportedFormat(gl, gl.RGBA, gl.RGBA, halfFloatTexType)
+    formatRG = getSupportedFormat(gl, gl.RGBA, gl.RGBA, halfFloatTexType)
+    formatR = getSupportedFormat(gl, gl.RGBA, gl.RGBA, halfFloatTexType)
   }
 
   const obj = new WebGLRenderingContextWithExtensions(gl, {
@@ -50,244 +62,289 @@ export function getWebGLContext(canvas?: HTMLCanvasElement): WebGLRenderingConte
     formatRG,
     formatR,
     halfFloatTexType,
-    supportLinearFiltering,
-  });
+    supportLinearFiltering
+  })
 
-  return obj;
+  return obj
 }
 
 export function getSupportedFormat(
   gl: WebGL2RenderingContext,
   internalFormat: GLenum,
   format: number = 0,
-  type: number = 0,
+  type: number = 0
 ): WebGLSupportedFormat | null {
   if (!supportRenderTextureFormat(gl, internalFormat, format, type)) {
     switch (internalFormat) {
       case gl.R16F:
-        return getSupportedFormat(gl, gl.RG16F, gl.RG, type);
+        return getSupportedFormat(gl, gl.RG16F, gl.RG, type)
       case gl.RG16F:
-        return getSupportedFormat(gl, gl.RGBA16F, gl.RGBA, type);
+        return getSupportedFormat(gl, gl.RGBA16F, gl.RGBA, type)
       default:
-        return null;
+        return null
     }
   }
   return {
     internalFormat,
-    format,
-  };
+    format
+  }
 }
 
 export function supportRenderTextureFormat(
   gl: WebGL2RenderingContext,
   internalFormat: GLenum,
   format: number = 0,
-  type: number = 0,
+  type: number = 0
 ) {
-  const texture = gl.createTexture();
-  gl.bindTexture(gl.TEXTURE_2D, texture);
-  gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.NEAREST);
-  gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.NEAREST);
-  gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_S, gl.CLAMP_TO_EDGE);
-  gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_T, gl.CLAMP_TO_EDGE);
-  gl.texImage2D(gl.TEXTURE_2D, 0, internalFormat, 4, 4, 0, format, type, null);
-  const fbo = gl.createFramebuffer();
-  gl.bindFramebuffer(gl.FRAMEBUFFER, fbo);
-  gl.framebufferTexture2D(gl.FRAMEBUFFER, gl.COLOR_ATTACHMENT0, gl.TEXTURE_2D, texture, 0);
-  const status = gl.checkFramebufferStatus(gl.FRAMEBUFFER);
-  return status === gl.FRAMEBUFFER_COMPLETE;
+  const texture = gl.createTexture()
+  gl.bindTexture(gl.TEXTURE_2D, texture)
+  gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.NEAREST)
+  gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.NEAREST)
+  gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_S, gl.CLAMP_TO_EDGE)
+  gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_T, gl.CLAMP_TO_EDGE)
+  gl.texImage2D(gl.TEXTURE_2D, 0, internalFormat, 4, 4, 0, format, type, null)
+  const fbo = gl.createFramebuffer()
+  gl.bindFramebuffer(gl.FRAMEBUFFER, fbo)
+  gl.framebufferTexture2D(
+    gl.FRAMEBUFFER,
+    gl.COLOR_ATTACHMENT0,
+    gl.TEXTURE_2D,
+    texture,
+    0
+  )
+  const status = gl.checkFramebufferStatus(gl.FRAMEBUFFER)
+  return status === gl.FRAMEBUFFER_COMPLETE
 }
 
 export function clamp01(input: number) {
-  return Math.min(Math.max(input, 0), 1);
+  return Math.min(Math.max(input, 0), 1)
 }
 
 export function hashCode(s: string) {
-  if (s.length === 0) return 0;
-  let hash = 0;
+  if (s.length === 0) return 0
+  let hash = 0
   for (let i = 0; i < s.length; i++) {
-    hash = (hash << 5) - hash + s.charCodeAt(i);
-    hash |= 0; // Convert to 32bit integer
+    hash = (hash << 5) - hash + s.charCodeAt(i)
+    hash |= 0 // Convert to 32bit integer
   }
-  return hash;
+  return hash
 }
 
-export function getTextureScale(texture: WebGLFBO, width: number, height: number) {
+export function getTextureScale(
+  texture: WebGLFBO,
+  width: number,
+  height: number
+) {
   return {
     x: width / (texture.width ?? 1),
-    y: height / (texture.height ?? 1),
-  };
+    y: height / (texture.height ?? 1)
+  }
 }
 
-export function generateColor() {
-  let c = HSVtoRGB(Math.random(), 1.0, 1.0);
-  c.r *= 0.15;
-  c.g *= 0.15;
-  c.b *= 0.15;
-  return c;
+export function generateColor({
+  r = Math.random(),
+  g = 1.0,
+  b = 1.0
+}: Partial<ColorLike> = {}) {
+  let c = HSVtoRGB(r, g, b)
+  c.r *= 0.15
+  c.g *= 0.15
+  c.b *= 0.15
+  return c
 }
 
 export function HSVtoRGB(h: number, s: number, v: number): ColorLike {
-  const i = Math.floor(h * 6);
-  const f = h * 6 - i;
-  const p = v * (1 - s);
-  const q = v * (1 - f * s);
-  const t = v * (1 - (1 - f) * s);
+  const i = Math.floor(h * 6)
+  const f = h * 6 - i
+  const p = v * (1 - s)
+  const q = v * (1 - f * s)
+  const t = v * (1 - (1 - f) * s)
   switch (i % 6) {
     case 0:
-      return { r: v, g: t, b: p };
+      return { r: v, g: t, b: p }
     case 1:
-      return { r: q, g: v, b: p };
+      return { r: q, g: v, b: p }
     case 2:
-      return { r: p, g: v, b: t };
+      return { r: p, g: v, b: t }
     case 3:
-      return { r: p, g: q, b: v };
+      return { r: p, g: q, b: v }
     case 4:
-      return { r: t, g: p, b: v };
+      return { r: t, g: p, b: v }
     case 5:
-      return { r: v, g: p, b: q };
+      return { r: v, g: p, b: q }
   }
-  return { r: 0, g: 0, b: 0 };
+  return { r: 0, g: 0, b: 0 }
 }
 
 export function normalizeColor(color: ColorLike) {
   let output: ColorLike = {
     r: color.r / 255,
     g: color.g / 255,
-    b: color.b / 255,
-  };
-  return output;
+    b: color.b / 255
+  }
+  return output
 }
 
 export function wrap(value: number, min: number, max: number) {
-  let range = max - min;
-  if (range === 0) return min;
-  return ((value - min) % range) + min;
+  let range = max - min
+  if (range === 0) return min
+  return ((value - min) % range) + min
 }
 
 export class Program {
-  gl: WebGLRenderingContextWithExtensions;
+  gl: WebGLRenderingContextWithExtensions
 
-  program: WebGLProgram;
-  vertexShader: WebGLShader;
-  fragmentShader: WebGLShader;
-  uniforms: Record<string, WebGLUniformLocation>;
+  program: WebGLProgram
+  vertexShader: WebGLShader
+  fragmentShader: WebGLShader
+  uniforms: Record<string, WebGLUniformLocation>
 
   constructor(
     gl: WebGLRenderingContextWithExtensions,
     vertexShader: WebGLShader,
-    fragmentShader: WebGLShader | string,
+    fragmentShader: WebGLShader | string
   ) {
-    this.gl = gl;
+    this.gl = gl
     if (typeof fragmentShader === 'string') {
-      fragmentShader = gl.compileShaderOfType(gl.gl.FRAGMENT_SHADER, fragmentShader);
+      fragmentShader = gl.compileShaderOfType(
+        gl.gl.FRAGMENT_SHADER,
+        fragmentShader
+      )
     }
-    const program = gl.createProgramFromShader(vertexShader, fragmentShader);
-    this.program = program;
-    this.uniforms = gl.getUniforms(program);
-    this.vertexShader = vertexShader;
-    this.fragmentShader = fragmentShader;
+    const program = gl.createProgramFromShader(vertexShader, fragmentShader)
+    this.program = program
+    this.uniforms = gl.getUniforms(program)
+    this.vertexShader = vertexShader
+    this.fragmentShader = fragmentShader
   }
 
   bind() {
-    if (!this.program) return;
-    this.gl.gl.useProgram(this.program);
+    if (!this.program) return
+    this.gl.gl.useProgram(this.program)
   }
 }
 
 export class Material extends Program {
-  fragmentShaderSource: string = '';
-  programs: WebGLProgram[];
+  fragmentShaderSource: string = ''
+  programs: WebGLProgram[]
 
   constructor(
     gl: WebGLRenderingContextWithExtensions,
     vertexShader: WebGLShader,
-    fragmentShaderSource: WebGLShader | string,
+    fragmentShaderSource: WebGLShader | string
   ) {
-    super(gl, vertexShader, fragmentShaderSource);
-    this.vertexShader = vertexShader;
-    if (typeof fragmentShaderSource === 'string') this.fragmentShaderSource = fragmentShaderSource;
-    this.programs = [];
+    super(gl, vertexShader, fragmentShaderSource)
+    this.vertexShader = vertexShader
+    if (typeof fragmentShaderSource === 'string')
+      this.fragmentShaderSource = fragmentShaderSource
+    this.programs = []
   }
 
   setKeywords(...keywords: string[]) {
     const hash =
-      keywords.length > 0 ? keywords.map((keyword) => hashCode(keyword)).reduce((prev, curr) => prev + curr) : 0;
+      keywords.length > 0
+        ? keywords
+            .map((keyword) => hashCode(keyword))
+            .reduce((prev, curr) => prev + curr)
+        : 0
     if (!this.programs[hash]) {
-      let fragmentShader = this.gl.compileShaderOfType(this.gl.gl.FRAGMENT_SHADER, this.fragmentShaderSource, keywords);
+      let fragmentShader = this.gl.compileShaderOfType(
+        this.gl.gl.FRAGMENT_SHADER,
+        this.fragmentShaderSource,
+        keywords
+      )
       if (fragmentShader) {
-        const program = this.gl.createProgramFromShader(this.vertexShader, fragmentShader);
-        if (program) this.programs[hash] = program;
+        const program = this.gl.createProgramFromShader(
+          this.vertexShader,
+          fragmentShader
+        )
+        if (program) this.programs[hash] = program
       }
     }
-    let program = this.programs[hash];
-    if (program === this.program) return;
-    this.uniforms = this.gl.getUniforms(program);
-    this.program = program;
+    let program = this.programs[hash]
+    if (program === this.program) return
+    this.uniforms = this.gl.getUniforms(program)
+    this.program = program
   }
 }
 
-export class WebGLRenderingContextWithExtensions implements WebGLShaderCompiler {
-  gl: WebGLRenderingContext & WebGL2RenderingContext;
-  ext: WebGLExtensionSupport;
+export class WebGLRenderingContextWithExtensions
+  implements WebGLShaderCompiler
+{
+  gl: WebGLRenderingContext & WebGL2RenderingContext
+  ext: WebGLExtensionSupport
 
-  constructor(gl: WebGLRenderingContext & WebGL2RenderingContext, ext: WebGLExtensionSupport = {}) {
-    this.gl = gl;
-    this.ext = ext;
+  constructor(
+    gl: WebGLRenderingContext & WebGL2RenderingContext,
+    ext: WebGLExtensionSupport = {}
+  ) {
+    this.gl = gl
+    this.ext = ext
   }
 
   compileShaderOfType(type: number, source: string, keywords: string[] = []) {
-    source = [...keywords.map((keyword) => `#define ${keyword}`), source].join('\n');
-    const shader = this.gl.createShader(type);
+    source = [...keywords.map((keyword) => `#define ${keyword}`), source].join(
+      '\n'
+    )
+    const shader = this.gl.createShader(type)
     if (!shader) {
-      throw new Error('error creating shader');
+      throw new Error('error creating shader')
     }
-    this.gl.shaderSource(shader, source);
-    this.gl.compileShader(shader);
-    if (!this.gl.getShaderParameter(shader, this.gl.COMPILE_STATUS)) console.trace(this.gl.getShaderInfoLog(shader));
-    return shader;
+    this.gl.shaderSource(shader, source)
+    this.gl.compileShader(shader)
+    if (!this.gl.getShaderParameter(shader, this.gl.COMPILE_STATUS))
+      console.trace(this.gl.getShaderInfoLog(shader))
+    return shader
   }
 
   getUniforms(program: WebGLProgram) {
-    const uniforms: Record<string, WebGLUniformLocation> = {};
-    const uniformCount = this.gl.getProgramParameter(program, this.gl.ACTIVE_UNIFORMS);
+    const uniforms: Record<string, WebGLUniformLocation> = {}
+    const uniformCount = this.gl.getProgramParameter(
+      program,
+      this.gl.ACTIVE_UNIFORMS
+    )
     for (let i = 0; i < uniformCount; i++) {
-      const uniformName = this.gl.getActiveUniform(program, i)?.name;
+      const uniformName = this.gl.getActiveUniform(program, i)?.name
       if (!uniformName) {
-        console.error('error generating uniform');
-        continue;
+        console.error('error generating uniform')
+        continue
       }
-      const uniform = this.gl.getUniformLocation(program, uniformName);
+      const uniform = this.gl.getUniformLocation(program, uniformName)
       if (!uniform) {
-        console.error('error generating uniform location');
-        continue;
+        console.error('error generating uniform location')
+        continue
       }
-      uniforms[uniformName] = uniform;
+      uniforms[uniformName] = uniform
     }
-    return uniforms;
+    return uniforms
   }
 
-  createProgramFromShader(vertexShader: WebGLShader, fragmentShader: WebGLShader) {
-    const program = this.gl.createProgram();
+  createProgramFromShader(
+    vertexShader: WebGLShader,
+    fragmentShader: WebGLShader
+  ) {
+    const program = this.gl.createProgram()
     if (!program) {
-      throw new Error('error creating program');
+      throw new Error('error creating program')
     }
-    this.gl.attachShader(program, vertexShader);
-    this.gl.attachShader(program, fragmentShader);
-    this.gl.linkProgram(program);
-    if (!this.gl.getProgramParameter(program, this.gl.LINK_STATUS)) console.trace(this.gl.getProgramInfoLog(program));
-    return program;
+    this.gl.attachShader(program, vertexShader)
+    this.gl.attachShader(program, fragmentShader)
+    this.gl.linkProgram(program)
+    if (!this.gl.getProgramParameter(program, this.gl.LINK_STATUS))
+      console.trace(this.gl.getProgramInfoLog(program))
+    return program
   }
 
   getResolution(resolution: number) {
-    let aspectRatio = this.gl.drawingBufferWidth / this.gl.drawingBufferHeight;
-    if (aspectRatio < 1) aspectRatio = 1.0 / aspectRatio;
+    let aspectRatio = this.gl.drawingBufferWidth / this.gl.drawingBufferHeight
+    if (aspectRatio < 1) aspectRatio = 1.0 / aspectRatio
 
-    let min = Math.round(resolution);
-    let max = Math.round(resolution * aspectRatio);
+    let min = Math.round(resolution)
+    let max = Math.round(resolution * aspectRatio)
 
-    if (this.gl.drawingBufferWidth > this.gl.drawingBufferHeight) return { width: max, height: min };
-    else return { width: min, height: max };
+    if (this.gl.drawingBufferWidth > this.gl.drawingBufferHeight)
+      return { width: max, height: min }
+    else return { width: min, height: max }
   }
 
   get baseVertexShader() {
@@ -312,8 +369,8 @@ export class WebGLRenderingContextWithExtensions implements WebGLShaderCompiler 
           vB = vUv - vec2(0.0, texelSize.y);
           gl_Position = vec4(aPosition, 0.0, 1.0);
       }
-      `,
-    );
+      `
+    )
   }
 
   get blurVertexShader() {
@@ -335,8 +392,8 @@ export class WebGLRenderingContextWithExtensions implements WebGLShaderCompiler 
           vR = vUv + texelSize * offset;
           gl_Position = vec4(aPosition, 0.0, 1.0);
       }
-      `,
-    );
+      `
+    )
   }
 
   get blurShader() {
@@ -357,8 +414,8 @@ export class WebGLRenderingContextWithExtensions implements WebGLShaderCompiler 
           sum += texture2D(uTexture, vR) * 0.35294117;
           gl_FragColor = sum;
       }
-      `,
-    );
+      `
+    )
   }
 
   get copyShader() {
@@ -374,8 +431,8 @@ export class WebGLRenderingContextWithExtensions implements WebGLShaderCompiler 
       void main () {
           gl_FragColor = texture2D(uTexture, vUv);
       }
-      `,
-    );
+      `
+    )
   }
 
   get clearShader() {
@@ -392,8 +449,8 @@ export class WebGLRenderingContextWithExtensions implements WebGLShaderCompiler 
       void main () {
           gl_FragColor = value * texture2D(uTexture, vUv);
       }
-      `,
-    );
+      `
+    )
   }
 
   get colorShader() {
@@ -407,8 +464,8 @@ export class WebGLRenderingContextWithExtensions implements WebGLShaderCompiler 
       void main () {
           gl_FragColor = color;
       }
-      `,
-    );
+      `
+    )
   }
 
   get checkerboardShader() {
@@ -430,8 +487,8 @@ export class WebGLRenderingContextWithExtensions implements WebGLShaderCompiler 
           v = v * 0.1 + 0.8;
           gl_FragColor = vec4(vec3(v), 1.0);
       }
-      `,
-    );
+      `
+    )
   }
 
   get displayShaderSource() {
@@ -498,7 +555,7 @@ export class WebGLRenderingContextWithExtensions implements WebGLShaderCompiler 
         float a = max(c.r, max(c.g, c.b));
         gl_FragColor = vec4(c, a);
     }
-    `;
+    `
   }
 
   get bloomPrefilterShader() {
@@ -521,8 +578,8 @@ export class WebGLRenderingContextWithExtensions implements WebGLShaderCompiler 
           c *= max(rq, br - threshold) / max(br, 0.0001);
           gl_FragColor = vec4(c, 0.0);
       }
-      `,
-    );
+      `
+    )
   }
 
   get bloomBlurShader() {
@@ -547,8 +604,8 @@ export class WebGLRenderingContextWithExtensions implements WebGLShaderCompiler 
           sum *= 0.25;
           gl_FragColor = sum;
       }
-      `,
-    );
+      `
+    )
   }
 
   get bloomFinalShader() {
@@ -574,8 +631,8 @@ export class WebGLRenderingContextWithExtensions implements WebGLShaderCompiler 
           sum *= 0.25;
           gl_FragColor = sum * intensity;
       }
-      `,
-    );
+      `
+    )
   }
 
   get sunraysMaskShader() {
@@ -594,8 +651,8 @@ export class WebGLRenderingContextWithExtensions implements WebGLShaderCompiler 
           c.a = 1.0 - min(max(br * 20.0, 0.0), 0.8);
           gl_FragColor = c;
       }
-      `,
-    );
+      `
+    )
   }
 
   get sunraysShader() {
@@ -634,8 +691,8 @@ export class WebGLRenderingContextWithExtensions implements WebGLShaderCompiler 
 
           gl_FragColor = vec4(color * Exposure, 0.0, 0.0, 1.0);
       }
-      `,
-    );
+      `
+    )
   }
 
   get splatShader() {
@@ -659,8 +716,8 @@ export class WebGLRenderingContextWithExtensions implements WebGLShaderCompiler 
           vec3 base = texture2D(uTarget, vUv).xyz;
           gl_FragColor = vec4(base + splat, 1.0);
       }
-      `,
-    );
+      `
+    )
   }
 
   get advectionShader() {
@@ -704,8 +761,8 @@ export class WebGLRenderingContextWithExtensions implements WebGLShaderCompiler 
           gl_FragColor = result / decay;
       }
       `,
-      this.ext.supportLinearFiltering ? [] : ['MANUAL_FILTERING'],
-    );
+      this.ext.supportLinearFiltering ? [] : ['MANUAL_FILTERING']
+    )
   }
 
   get divergenceShader() {
@@ -737,8 +794,8 @@ export class WebGLRenderingContextWithExtensions implements WebGLShaderCompiler 
           float div = 0.5 * (R - L + T - B);
           gl_FragColor = vec4(div, 0.0, 0.0, 1.0);
       }
-      `,
-    );
+      `
+    )
   }
 
   get curlShader() {
@@ -763,8 +820,8 @@ export class WebGLRenderingContextWithExtensions implements WebGLShaderCompiler 
           float vorticity = R - L - T + B;
           gl_FragColor = vec4(0.5 * vorticity, 0.0, 0.0, 1.0);
       }
-      `,
-    );
+      `
+    )
   }
 
   get vorticityShader() {
@@ -801,8 +858,8 @@ export class WebGLRenderingContextWithExtensions implements WebGLShaderCompiler 
           velocity = min(max(velocity, -1000.0), 1000.0);
           gl_FragColor = vec4(velocity, 0.0, 1.0);
       }
-      `,
-    );
+      `
+    )
   }
 
   get pressureShader() {
@@ -830,8 +887,8 @@ export class WebGLRenderingContextWithExtensions implements WebGLShaderCompiler 
           float pressure = (L + R + B + T - divergence) * 0.25;
           gl_FragColor = vec4(pressure, 0.0, 0.0, 1.0);
       }
-      `,
-    );
+      `
+    )
   }
 
   get gradientSubtractShader() {
@@ -858,7 +915,7 @@ export class WebGLRenderingContextWithExtensions implements WebGLShaderCompiler 
           velocity.xy -= vec2(R - L, T - B);
           gl_FragColor = vec4(velocity, 0.0, 1.0);
       }
-      `,
-    );
+      `
+    )
   }
 }

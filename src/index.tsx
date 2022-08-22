@@ -1,12 +1,11 @@
 import React from 'react'
 import styled from 'styled-components'
-import { ColorLike, Pointer, WebGLFBO } from './types'
+import { ColorGenerator, ColorLike, Pointer, WebGLFBO } from './types'
 import {
   Program,
   Material,
   getTextureScale,
   getWebGLContext,
-  generateColor,
   normalizeColor,
   wrap
 } from './components/webgl'
@@ -73,8 +72,12 @@ export const GL_CONFIGS = {
 
 type Props = {
   fixed?: boolean
+  colorGenerator?: ColorGenerator
 }
-function WebGLFluidSim({ fixed = true }: Props) {
+function WebGLFluidSim({
+  fixed = true,
+  colorGenerator = () => ({ r: Math.random(), g: 1.0, b: 1.0 })
+}: Props) {
   //
 
   const refCanvas = React.useRef<HTMLCanvasElement>(null)
@@ -638,7 +641,7 @@ function WebGLFluidSim({ fixed = true }: Props) {
       if (colorUpdateTimer >= 1) {
         colorUpdateTimer = wrap(colorUpdateTimer, 0, 1)
         pointers.forEach((p) => {
-          p.color = generateColor()
+          p.color = colorGenerator()
         })
       }
     }
@@ -1045,7 +1048,7 @@ function WebGLFluidSim({ fixed = true }: Props) {
 
     function multipleSplats(canvas: HTMLCanvasElement, amount: number = 0) {
       for (let i = 0; i < amount; i++) {
-        const color = generateColor()
+        const color = colorGenerator()
         color.r *= 10.0
         color.g *= 10.0
         color.b *= 10.0
@@ -1194,7 +1197,7 @@ function WebGLFluidSim({ fixed = true }: Props) {
       pointer.prevTexcoordY = pointer.texcoordY
       pointer.deltaX = 0
       pointer.deltaY = 0
-      pointer.color = generateColor()
+      pointer.color = colorGenerator()
     }
 
     const updatePointerMoveData = (
@@ -1248,7 +1251,7 @@ function WebGLFluidSim({ fixed = true }: Props) {
           : GL_CONFIGS.SPLAT_COUNT()
       )
     }, GL_CONFIGS.SPLAT_RATE)
-  }, [canvas])
+  }, [canvas, colorGenerator])
 
   return <StyledCanvas ref={refCanvas} fixed={fixed} />
 }
