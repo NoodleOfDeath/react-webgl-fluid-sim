@@ -10,6 +10,7 @@ import {
   wrap
 } from './components/webgl'
 import { LDR_LLL1_0 } from './assets/LDR_LLL1_0'
+export * from './types'
 
 const StyledCanvas = styled.canvas<Props>`
   width: 100%;
